@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import subprocess, sys, time
+import os, subprocess, sys, time
 
 num_cpucores = 40
 mode = "vr"
@@ -13,6 +13,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "c":
 for num_processes in runs:
     print(f"initiating run with {num_processes} processes.")
 
+    subprocess.run(f"rm logoutput/{mode}_{num_processes:02}_*", shell=True, stderr=subprocess.DEVNULL)
     processes = []
     files = []
     for process in range(num_processes):
@@ -46,12 +47,9 @@ for num_processes in runs:
         print("cleaned.")
 
 if clean:
-    wanted_files = []
-    for i in runs:
-        wanted_files.append(f"logoutput/{mode}_{i:02}_cleaned")
-
     summary = []
-    for filename in wanted_files:
+    for i in runs:
+        filename = f"logoutput/{mode}_{i:02}_cleaned"
         with open(filename) as f:
             lines = f.readlines()
     
@@ -61,7 +59,7 @@ if clean:
         for line in lines[::2]:
             times.append(float(line[64:].split()[0]))
 
-        throughput = sum([20000/sec for sec in times])
+        throughput = sum([req_per_thread/sec for sec in times])
         avg_time = sum(times) / len(times)
         
         latencies = []
@@ -69,10 +67,10 @@ if clean:
         for line in lines[1::2]:
             latencies.append(int(line[22:].split()[0]))
         avg_latency = sum(latencies) / len(latencies)
-
-        s = "\t".join([str(elem) for elem in [filename, throughput, avg_latency, len(lines) * 10000, avg_time]])
-        summary.append(s)
+        s = "\t".join([mode, str(i), f"{throughput:.3f}", f"{avg_latency:.3f}", str(len(lines) // 2 * req_per_thread), f"{avg_time:.3f}"])
+        summary.append(s+"\n")
         print(s)
+
     f = open("summary", "a")
     f.writelines(summary)
     f.close()
